@@ -147,7 +147,7 @@ summarize_motion_pairs <- function(bd_motion, relate, preprocess = first_arg, or
             )
         }
       ),
-      .synsyn.map_motion_pairs.result = map2(
+      .synsyn.map_motion_pairs.result = furrr::future_map2(
         .synsyn.map_motion_pairs.nest, .synsyn.pairs_todo,
         compute_pairs_up_to,
         relate = relate, preprocess = preprocess,
