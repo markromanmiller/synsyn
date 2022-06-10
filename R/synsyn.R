@@ -179,7 +179,7 @@ summarize_motion <- function(bd_motion, fn, head_n = Inf) {
     rowwise() %>%
 
     mutate(
-      .synsyn.map_motion.result = pmap(
+      .synsyn.map_motion.result = furrr::future_pmap(
         list(file_path, participant_id, session_id, task_label),
         function(file_path, participant_id, session_id, task_label) {
           result <- fn(file_path, participant_id, session_id, task_label)
