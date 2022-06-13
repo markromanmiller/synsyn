@@ -188,7 +188,7 @@ summarize_motion <- function(bd_motion, fn, head_n = Inf) {
         }
       )
     ) %>%
-    unnest(.synsyn.map_motion_pairs.result)
+    unnest(.synsyn.map_motion.result)
 }
 
 
