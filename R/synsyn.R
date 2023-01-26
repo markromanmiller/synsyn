@@ -36,7 +36,7 @@ first_arg <- function(arg, ...) {
   arg
 }
 
-compute_pairs_up_to <- function(dta, n_todo, relate, preprocess, ordered, unique, pb) {
+compute_pairs_up_to <- function(dta, n_todo, relate, preprocess, group_summary, ordered, unique, pb) {
 
   pairs_completed <- 0
 
@@ -92,7 +92,7 @@ compute_pairs_up_to <- function(dta, n_todo, relate, preprocess, ordered, unique
     #rm(px_data)
     if (pairs_completed >= n_todo) break
   }
-  bind_rows(rows)
+  group_summary(rows)
 }
 
 #'
@@ -102,10 +102,10 @@ compute_pairs_up_to <- function(dta, n_todo, relate, preprocess, ordered, unique
 #' unique definitely needs a different name.
 #'
 #' @export
-#' @importFrom dplyr group_by group_nest mutate
+#' @importFrom dplyr group_by group_nest mutate bind_rows
 #' @importFrom magrittr %>%
 #'
-summarize_motion_pairs <- function(bd_motion, relate, preprocess = first_arg, ordered = F, unique = F, head_n = Inf, progress = T) {
+summarize_motion_pairs <- function(bd_motion, relate, preprocess = first_arg, group_summary = bind_rows, ordered = F, unique = F, head_n = Inf, progress = T) {
   #browser()
   # todo: does match.arg go here?
 
@@ -147,10 +147,10 @@ summarize_motion_pairs <- function(bd_motion, relate, preprocess = first_arg, or
             )
         }
       ),
-      .synsyn.map_motion_pairs.result = furrr::future_map2(
+      .synsyn.map_motion_pairs.result = map2( #furrr::future_map2(
         .synsyn.map_motion_pairs.nest, .synsyn.pairs_todo,
         compute_pairs_up_to,
-        relate = relate, preprocess = preprocess,
+        relate = relate, preprocess = preprocess, group_summary = group_summary,
         ordered = ordered, unique = unique, pb = pb
       )
     ) %>%
@@ -177,7 +177,7 @@ summarize_motion <- function(bd_motion, fn, head_n = Inf) {
 
   motion_files %>%
     mutate(
-      .synsyn.map_motion.result = furrr::future_pmap(
+      .synsyn.map_motion.result = pmap( # furrr::future_pmap(
         list(file_path, participant_id, session_id, task_label),
         function(file_path, participant_id, session_id, task_label) {
           result <- fn(file_path, participant_id, session_id, task_label)
@@ -189,10 +189,34 @@ summarize_motion <- function(bd_motion, fn, head_n = Inf) {
     unnest(.synsyn.map_motion.result)
 }
 
+reduce_motion <- function(bd_motion, fn, reduce_fn, head_n = Inf) {
 
+  motion_files <- bd_motion %>%
+    head(n = head_n)
 
+  # TODO: use pb if there are enough (>10) entries
+  pb <- progress::progress_bar$new(
+    format = "[:bar] :percent eta: :eta",
+    total = nrow(motion_files)
+  )
+  pb$tick(0)
 
+  result <- NULL
 
+  for (i in 1:nrow(motion_files)) {
+
+    step_result <- with(motion_files, fn(file_path[i], participant_id[i], session_id[i], task_label[i]))
+
+    if (i == 1) {
+      result <- step_result
+    } else {
+      result <- reduce_fn(result, step_result)
+    }
+
+    pb$tick()
+  }
+  result
+}
 
 
 
