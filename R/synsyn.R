@@ -32,10 +32,8 @@
 #'   - rea
 #'
 
-first_arg <- function(arg, ...) {
-  arg
-}
 
+#' @keywords Internal
 compute_pairs_up_to <- function(dta, n_todo, relate, preprocess, group_summary, ordered, unique, pb) {
 
   pairs_completed <- 0
@@ -95,19 +93,31 @@ compute_pairs_up_to <- function(dta, n_todo, relate, preprocess, group_summary, 
   group_summary(rows)
 }
 
+#' Summarize pairs of motion data
 #'
-#' given a bids dataset, apply a function relating pairs of participants in the same session
-#' preprocess should take in a filename, relate should work with the output of preprocess to return a df
+#' Given a bids dataset, apply a function relating pairs of participants in the same session.
 #'
-#' unique definitely needs a different name.
+#' @param bd_motion A BIDS motion files table, of the format created by `bids::bids_motion`
+#' @param relate A function with two arguments that relate two participant's motion together into a data frame of values.
+#' @param preprocess A function with arguments `f(file_path, session_id, participant_id, task_label)` that returns a data frame on which `relate` operates. At the very least, this function needs to read the file at `file_path` into a data frame.
+#' @param ordered Whether the pairs are ordered pairs, i.e, whether to compute both `relate(A, B)` and `relate(B, A)` for participants A and B.
+#' @param unique Deprecated, use `self_relate` instead
+#' @param self_relate Whether to compute relationships within the same person, i.e., whether to calculate `relate(A, A)` for a participant A.
+#' @param head_n How many pairs to compute before returning.
+#' @param progress Whether to show a progress bar
 #'
 #' @export
 #' @importFrom dplyr group_by group_nest mutate bind_rows
 #' @importFrom magrittr %>%
+#' @importFrom lifecycle deprecate_soft
 #'
-summarize_motion_pairs <- function(bd_motion, relate, preprocess = first_arg, group_summary = bind_rows, ordered = F, unique = F, head_n = Inf, progress = T) {
+summarize_motion_pairs <- function(bd_motion, relate, preprocess, group_summary = bind_rows, ordered = F, unique = NA, self_relate = F, head_n = Inf, progress = T) {
   #browser()
   # todo: does match.arg go here?
+  if (!isTRUE(is.na(unique))) {
+    deprecate_soft("0.1.1", "summarize_motion_pairs(unique)", with = "summarize_motion_pairs(self_relate)")
+    self_relate <- unique
+  }
 
   npairs <- function(n) {
     triangle = (n^2-n)/2
@@ -163,6 +173,15 @@ summarize_motion_pairs <- function(bd_motion, relate, preprocess = first_arg, gr
     unnest(.synsyn.map_motion_pairs.result)
 }
 
+#' Summarize individuals' motion data
+#'
+#' Given a bids dataset, apply a function to each individual's sessions of motion, one at a time.
+#'
+#' @param bd_motion A BIDS motion files table, of the format created by `bids::bids_motion`
+#' @param fn A function with arguments `f(file_path, session_id, participant_id, task_label)` that returns a summarized data frame
+#' @param head_n How many pairs to compute before returning
+#'
+#' @export
 summarize_motion <- function(bd_motion, fn, head_n = Inf) {
   # todo: does match.arg go here?
   motion_files <- bd_motion %>%
@@ -189,6 +208,17 @@ summarize_motion <- function(bd_motion, fn, head_n = Inf) {
     unnest(.synsyn.map_motion.result)
 }
 
+
+#' Summarize individual motion data iteratively
+#'
+#' Summarize individuals' motion data into a single frame with a custom function using the functional programming approach called reduce, fold, etc.
+#'
+#' @param bd_motion A BIDS motion files table, of the format created by `bids::bids_motion`
+#' @param fn A function that takes arguments `f(file_path, session_id, participant_id, task_label)` and returns a data frame
+#' @param reduce_fn A function that takes arguments `f(result, step_result)`, the first is the accumulated value, and the second is the result of `fn` for the current element in `bids_motion`.
+#' @param head_n How many pairs to compute before returning
+#'
+#' @export
 reduce_motion <- function(bd_motion, fn, reduce_fn, head_n = Inf) {
 
   motion_files <- bd_motion %>%
