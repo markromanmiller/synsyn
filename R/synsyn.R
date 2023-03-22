@@ -34,7 +34,7 @@
 
 
 #' @keywords Internal
-compute_pairs_up_to <- function(dta, n_todo, relate, preprocess, group_summary, ordered, unique, pb) {
+compute_pairs_up_to <- function(dta, n_todo, relate, preprocess, group_summary, ordered, self_relate, pb) {
 
   pairs_completed <- 0
 
@@ -52,7 +52,7 @@ compute_pairs_up_to <- function(dta, n_todo, relate, preprocess, group_summary, 
 
       py_data <- NULL
       if (fpx_ind == fpy_ind) {
-        if (unique) {
+        if (self_relate) {
           # save time, don't recompute
           py_data <- px_data
         } else {
@@ -121,7 +121,7 @@ summarize_motion_pairs <- function(bd_motion, relate, preprocess, group_summary 
 
   npairs <- function(n) {
     triangle = (n^2-n)/2
-    triangle + triangle*ordered + n*unique
+    triangle + triangle*ordered + n*self_relate
   }
 
   nested_pairs <- bd_motion %>%
@@ -161,7 +161,7 @@ summarize_motion_pairs <- function(bd_motion, relate, preprocess, group_summary 
         .synsyn.map_motion_pairs.nest, .synsyn.pairs_todo,
         compute_pairs_up_to,
         relate = relate, preprocess = preprocess, group_summary = group_summary,
-        ordered = ordered, unique = unique, pb = pb
+        ordered = ordered, self_relate = self_relate, pb = pb
       )
     ) %>%
     select(-c(
